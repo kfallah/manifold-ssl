@@ -1,7 +1,9 @@
-from functools import partial
 import argparse
-from torchvision import models
 import multiprocessing
+from functools import partial
+
+from torchvision import models
+
 from datasets import DS_LIST
 from methods import METHOD_LIST
 
@@ -56,7 +58,7 @@ def get_cfg():
         "--lr_step",
         type=str,
         choices=["cos", "step", "none"],
-        default="step",
+        default="cos",
         help="learning rate schedule type",
     )
     parser.add_argument("--lr", type=float, default=1e-3, help="learning rate")

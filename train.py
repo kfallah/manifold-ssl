@@ -1,11 +1,11 @@
-from tqdm import trange, tqdm
 import numpy as np
-import wandb
 import torch
-import torch.optim as optim
-from torch.optim.lr_scheduler import MultiStepLR, CosineAnnealingWarmRestarts
 import torch.backends.cudnn as cudnn
+import torch.optim as optim
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, MultiStepLR
+from tqdm import tqdm, trange
 
+import wandb
 from cfg import get_cfg
 from datasets import get_ds
 from methods import get_method
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     if cfg.fname is not None:
         model.load_state_dict(torch.load(cfg.fname))
 
-    optimizer = optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.adam_l2)
+    optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.adam_l2)
     scheduler = get_scheduler(optimizer, cfg)
 
     eval_every = cfg.eval_every

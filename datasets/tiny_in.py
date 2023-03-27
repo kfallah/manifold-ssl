@@ -1,7 +1,8 @@
-from torchvision.datasets import ImageFolder
 import torchvision.transforms as T
-from .transforms import MultiSample, aug_transform
+from torchvision.datasets import ImageFolder
+
 from .base import BaseDataset
+from .transforms import MultiSample, aug_transform
 
 
 def base_transform():
@@ -23,4 +24,4 @@ class TinyImageNet(BaseDataset):
 
     def ds_test(self):
         t = base_transform()
-        return ImageFolder(root="data/tiny-imagenet-200/test", transform=t)
+        return ImageFolder(root="data/tiny-imagenet-200/val", transform=t)
