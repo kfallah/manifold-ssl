@@ -9,7 +9,7 @@ def get_data(model, loader, output_size, device):
     ys = torch.empty(len(loader), loader.batch_size, dtype=torch.long, device=device)
     with torch.no_grad():
         for i, (x, y) in enumerate(loader):
-            x = x.cuda()
+            x = x.to(device)
             xs[i] = model(x).to(device)
             ys[i] = y.to(device)
     xs = xs.view(-1, output_size)

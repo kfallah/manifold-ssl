@@ -1,45 +1,66 @@
+import logging
+import warnings
+
+import hydra
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, MultiStepLR
+from hydra.core.config_store import ConfigStore
+from omegaconf import OmegaConf
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
 from tqdm import tqdm, trange
 
 import wandb
-from cfg import get_cfg
+from config import ExperimentConfig
 from datasets import get_ds
 from methods import get_method
+from metric_log import log_train_metrics
 
+warnings.filterwarnings("ignore")
 
-def get_scheduler(optimizer, cfg):
-    if cfg.lr_step == "cos":
-        return CosineAnnealingWarmRestarts(
+def register_configs() -> None:
+    cs.store(name="exp_cfg", node=ExperimentConfig)
+
+def get_scheduler(optimizer, cfg: ExperimentConfig):
+    if cfg.lr_scheduler == "cos":
+        return CosineAnnealingLR(
             optimizer,
-            T_0=cfg.epoch if cfg.T0 is None else cfg.T0,
-            T_mult=cfg.Tmult,
-            eta_min=cfg.eta_min,
+            T_max=cfg.epoch,
+            eta_min=cfg.lr_min,
         )
-    elif cfg.lr_step == "step":
-        m = [cfg.epoch - a for a in cfg.drop]
-        return MultiStepLR(optimizer, milestones=m, gamma=cfg.drop_gamma)
+    elif cfg.lr_scheduler == "step":
+        m = [cfg.epoch - a for a in cfg.lr_drop]
+        return MultiStepLR(optimizer, milestones=m, gamma=cfg.lr_drop_gamma)
     else:
         return None
 
 
-if __name__ == "__main__":
-    cfg = get_cfg()
-    wandb.init(project=cfg.wandb, config=cfg)
+@hydra.main(version_base=None, config_path="config", config_name="base")
+def run_experiment(cfg: ExperimentConfig):
+    wandb.init(
+        project=cfg.wandb_project, 
+        config=cfg, 
+        mode="online" if cfg.enable_wandb else "disabled",
+        settings=wandb.Settings(start_method="thread"),
+        config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+    )
+    default_device = cfg.devices[0]
 
-    ds = get_ds(cfg.dataset)(cfg.bs, cfg, cfg.num_workers)
-    model = get_method(cfg.method)(cfg)
-    model.cuda().train()
-    if cfg.fname is not None:
-        model.load_state_dict(torch.load(cfg.fname))
+    ds = get_ds(cfg.data_cfg.dataset)(cfg.data_cfg.batch_size, cfg.data_cfg, cfg.data_cfg.num_workers)
+    model = get_method(cfg.ssl_cfg.ssl_method)(cfg, cfg.devices)
+    model.to(default_device).train()
+    if len(cfg.load_filename) > 0:
+        model.load_state_dict(torch.load(cfg.load_filename))
 
-    optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.adam_l2)
+    optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     scheduler = get_scheduler(optimizer, cfg)
 
-    eval_every = cfg.eval_every
+    # Set random seeds
+    torch.manual_seed(cfg.seed)
+    np.random.seed(cfg.seed)
+
+    eval_every = cfg.eval_freq
     lr_warmup = 0 if cfg.lr_warmup else 500
     cudnn.benchmark = True
 
@@ -59,21 +80,25 @@ if __name__ == "__main__":
             optimizer.step()
             loss_ep.append(loss.item())
             model.step(ep / cfg.epoch)
-            if cfg.lr_step == "cos" and lr_warmup >= 500:
-                scheduler.step(ep + n_iter / iters)
+            if cfg.lr_scheduler == "cos" and lr_warmup >= 500:
+                scheduler.step()
 
-        if cfg.lr_step == "step":
+        if cfg.lr_scheduler == "step":
             scheduler.step()
-
-        if len(cfg.drop) and ep == (cfg.epoch - cfg.drop[0]):
-            eval_every = cfg.eval_every_drop
 
         if (ep + 1) % eval_every == 0:
             acc_knn, acc = model.get_acc(ds.clf, ds.test)
-            wandb.log({"acc": acc[1], "acc_5": acc[5], "acc_knn": acc_knn}, commit=False)
+            wandb.log({"eval/acc": acc[1], "eval/acc_5": acc[5], "eval/acc_knn": acc_knn}, commit=False)
 
         if (ep + 1) % 100 == 0:
-            fname = f"data/{cfg.method}_{cfg.dataset}_{ep}.pt"
+            fname = f"checkpoints/{cfg.ssl_cfg.method}_{cfg.data_cfg.dataset}_{ep}.pt"
             torch.save(model.state_dict(), fname)
 
+        log_train_metrics()
         wandb.log({"loss": np.mean(loss_ep), "ep": ep})
+
+if __name__ == "__main__":
+    log = logging.getLogger(__name__)
+    cs = ConfigStore.instance()
+    register_configs()
+    run_experiment()

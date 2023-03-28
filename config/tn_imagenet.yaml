@@ -1,0 +1,18 @@
+defaults:
+  - exp_cfg
+  - default_hydra
+  - _self_
+
+exp_name: simclr_tnimagenet
+exp_dir: results
+devices: [0]
+enable_wandb: true
+seed: 0
+lr: 2.0e-3
+
+data_cfg:
+  dataset: tiny_in
+  batch_size: 512
+
+ssl_cfg:
+  head_output_dim: 128

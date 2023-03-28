@@ -1,9 +1,12 @@
-from itertools import chain
 import math
+from itertools import chain
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model import get_model, get_head
+
+from model import get_head, get_model
+
 from .base import BaseMethod
 from .norm_mse import norm_mse_loss
 
@@ -11,7 +14,7 @@ from .norm_mse import norm_mse_loss
 class BYOL(BaseMethod):
     """ implements BYOL loss https://arxiv.org/abs/2006.07733 """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, devices):
         """ init additional target and predictor networks """
         super().__init__(cfg)
         self.pred = nn.Sequential(

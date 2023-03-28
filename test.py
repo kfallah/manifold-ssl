@@ -1,13 +1,12 @@
 import torch
-from datasets import get_ds
-from cfg import get_cfg
-from methods import get_method
 
-from eval.sgd import eval_sgd
+from config import get_cfg
+from datasets import get_ds
+from eval.get_data import get_data
 from eval.knn import eval_knn
 from eval.lbfgs import eval_lbfgs
-from eval.get_data import get_data
-
+from eval.sgd import eval_sgd
+from methods import get_method
 
 if __name__ == "__main__":
     cfg = get_cfg()
@@ -30,10 +29,9 @@ if __name__ == "__main__":
     x_train, y_train = get_data(model, ds.clf, out_size, device)
     x_test, y_test = get_data(model, ds.test, out_size, device)
 
-    if cfg.clf == "sgd":
-        acc = eval_sgd(x_train, y_train, x_test, y_test)
-    if cfg.clf == "knn":
-        acc = eval_knn(x_train, y_train, x_test, y_test)
-    elif cfg.clf == "lbfgs":
-        acc = eval_lbfgs(x_train, y_train, x_test, y_test)
+    acc = eval_sgd(x_train, y_train, x_test, y_test)
+    print(acc)
+    acc = eval_knn(x_train, y_train, x_test, y_test)
+    print(acc)
+    acc = eval_lbfgs(x_train, y_train, x_test, y_test)
     print(acc)

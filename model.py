@@ -7,16 +7,16 @@ def get_head(out_size, cfg):
     x = []
     in_size = out_size
     for _ in range(cfg.head_layers - 1):
-        x.append(nn.Linear(in_size, cfg.head_size))
+        x.append(nn.Linear(in_size, cfg.head_hidden_dim))
         if cfg.add_bn:
-            x.append(nn.BatchNorm1d(cfg.head_size))
+            x.append(nn.BatchNorm1d(cfg.head_hidden_dim))
         x.append(nn.ReLU())
-        in_size = cfg.head_size
-    x.append(nn.Linear(in_size, cfg.emb))
+        in_size = cfg.head_hidden_dim
+    x.append(nn.Linear(in_size, cfg.head_output_dim))
     return nn.Sequential(*x)
 
 
-def get_model(arch, dataset):
+def get_model(arch, dataset, devices):
     """ creates encoder E() by name and modifies it for dataset """
     model = getattr(models, arch)(pretrained=False)
     if dataset != "imagenet":
@@ -26,4 +26,4 @@ def get_model(arch, dataset):
     out_size = model.fc.in_features
     model.fc = nn.Identity()
 
-    return nn.DataParallel(model), out_size
+    return nn.DataParallel(model, device_ids=devices), out_size

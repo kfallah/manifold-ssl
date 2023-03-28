@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+from config import ExperimentConfig
 from eval.get_data import get_data
 from eval.knn import eval_knn
 from eval.sgd import eval_sgd
@@ -12,14 +13,14 @@ class BaseMethod(nn.Module):
         It includes encoder and head for training, evaluation function.
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg: ExperimentConfig, devices):
         super().__init__()
-        self.model, self.out_size = get_model(cfg.arch, cfg.dataset)
-        self.head = get_head(self.out_size, cfg)
-        self.knn = cfg.knn
-        self.num_pairs = cfg.num_samples * (cfg.num_samples - 1) // 2
-        self.eval_head = cfg.eval_head
-        self.emb_size = cfg.emb
+        self.model, self.out_size = get_model(cfg.ssl_cfg.arch, cfg.data_cfg.dataset, devices)
+        self.head = get_head(self.out_size, cfg.ssl_cfg)
+        self.knn = cfg.knn_num_neighbor
+        self.num_pairs = cfg.data_cfg.num_samples * (cfg.data_cfg.num_samples - 1) // 2
+        self.eval_head = cfg.eval_header
+        self.emb_size = cfg.ssl_cfg.head_output_dim
 
     def forward(self, samples):
         raise NotImplementedError

@@ -1,15 +1,17 @@
 from functools import partial
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from .base import BaseMethod
 
 
 def contrastive_loss(x0, x1, tau, norm):
     # https://github.com/google-research/simclr/blob/master/objective.py
     bsize = x0.shape[0]
-    target = torch.arange(bsize).cuda()
-    eye_mask = torch.eye(bsize).cuda() * 1e9
+    target = torch.arange(bsize, device=x0.device)
+    eye_mask = torch.eye(bsize, device=x0.device) * 1e9
     if norm:
         x0 = F.normalize(x0, p=2, dim=1)
         x1 = F.normalize(x1, p=2, dim=1)
@@ -26,15 +28,18 @@ def contrastive_loss(x0, x1, tau, norm):
 class Contrastive(BaseMethod):
     """ implements contrastive loss https://arxiv.org/abs/2002.05709 """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, devices):
         """ init additional BN used after head """
-        super().__init__(cfg)
-        self.bn_last = nn.BatchNorm1d(cfg.emb)
-        self.loss_f = partial(contrastive_loss, tau=cfg.tau, norm=cfg.norm)
+        super().__init__(cfg, devices)
+        self.bn_last = nn.BatchNorm1d(cfg.ssl_cfg.head_output_dim)
+        self.loss_f = partial(contrastive_loss, tau=cfg.ssl_cfg.tau, norm=cfg.ssl_cfg.norm_latent)
 
     def forward(self, samples):
         bs = len(samples[0])
         h = [self.model(x.cuda(non_blocking=True)) for x in samples]
+
+        # TODO: Add manifold operator transformations here
+
         h = self.bn_last(self.head(torch.cat(h)))
         loss = 0
         for i in range(len(samples) - 1):

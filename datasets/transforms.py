@@ -1,21 +1,23 @@
 import torchvision.transforms as T
 
+from config import DataConfig
 
-def aug_transform(crop, base_transform, cfg, extra_t=[]):
+
+def aug_transform(crop, base_transform, cfg: DataConfig, extra_t=[]):
     """ augmentation transform generated from config """
     return T.Compose(
         [
             T.RandomApply(
-                [T.ColorJitter(cfg.cj0, cfg.cj1, cfg.cj2, cfg.cj3)], p=cfg.cj_p
+                [T.ColorJitter(cfg.cj_brightness, cfg.cj_contrast, cfg.cj_saturation, cfg.cj_hue)], p=cfg.cj_prob
             ),
-            T.RandomGrayscale(p=cfg.gs_p),
+            T.RandomGrayscale(p=cfg.grayscale_prob),
             T.RandomResizedCrop(
                 crop,
-                scale=(cfg.crop_s0, cfg.crop_s1),
-                ratio=(cfg.crop_r0, cfg.crop_r1),
+                scale=(cfg.min_crop, cfg.max_crop),
+                ratio=(cfg.min_crop_ratio, cfg.max_crop_ratio),
                 interpolation=3,
             ),
-            T.RandomHorizontalFlip(p=cfg.hf_p),
+            T.RandomHorizontalFlip(p=cfg.hf_prob),
             *extra_t,
             base_transform(),
         ]

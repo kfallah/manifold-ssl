@@ -1,8 +1,9 @@
 import torch
 import torch.nn.functional as F
-from .whitening import Whitening2d
+
 from .base import BaseMethod
 from .norm_mse import norm_mse_loss
+from .whitening import Whitening2d
 
 
 class WMSE(BaseMethod):
@@ -18,7 +19,7 @@ class WMSE(BaseMethod):
 
     def forward(self, samples):
         bs = len(samples[0])
-        h = [self.model(x.cuda(non_blocking=True)) for x in samples]
+        h = [self.model(x) for x in samples]
         h = self.head(torch.cat(h))
         loss = 0
         for _ in range(self.w_iter):

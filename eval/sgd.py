@@ -10,7 +10,7 @@ def eval_sgd(x_train, y_train, x_test, y_test, topk=[1, 5], epoch=500):
     output_size = x_train.shape[1]
     num_class = y_train.max().item() + 1
     clf = nn.Linear(output_size, num_class)
-    clf.cuda()
+    clf.to(x_train.device)
     clf.train()
     optimizer = optim.Adam(clf.parameters(), lr=lr_start, weight_decay=5e-6)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)

@@ -1,0 +1,9 @@
+defaults:
+  - exp_cfg
+  - default_hydra
+  - _self_
+
+exp_dir: results
+devices: [0]
+enable_wandb: true
+seed: 0
