@@ -70,6 +70,14 @@ class ManifoldConfig:
     shift_prior: float = 0.00
     learn_prior: bool = True
     prior_shift: bool = False
+
+    # Loss config
+    transop_loss_weight: float = 1.0
+    kl_loss_weight: float = 1.0e-5
+    enable_shift_l2: bool = True
+    shift_l2_weight: bool = 2.0e-3
+    enable_eigreg: bool = True
+    eigreg_weight: bool = 1.0e-6
        
 
 @dataclass

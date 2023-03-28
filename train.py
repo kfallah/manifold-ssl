@@ -14,6 +14,7 @@ from tqdm import tqdm, trange
 import wandb
 from config import ExperimentConfig
 from datasets import get_ds
+from manifold.transop import TransportOperator
 from methods import get_method
 from metric_log import log_train_metrics
 
@@ -50,10 +51,18 @@ def run_experiment(cfg: ExperimentConfig):
     ds = get_ds(cfg.data_cfg.dataset)(cfg.data_cfg.batch_size, cfg.data_cfg, cfg.data_cfg.num_workers)
     model = get_method(cfg.ssl_cfg.ssl_method)(cfg, cfg.devices)
     model.to(default_device).train()
+
+    manifold_operator = None
+    if cfg.manifold_cfg.enable_manifold_aug:
+        manifold_operator = TransportOperator(cfg.manifold_cfg, model.out_size)
+
     if len(cfg.load_filename) > 0:
         model.load_state_dict(torch.load(cfg.load_filename))
 
-    optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+    params = [{"params": model.parameters()}]
+    if cfg.manifold_cfg.enable_manifold_aug:
+        params += manifold_operator.get_param_groups()
+    optimizer = optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
     scheduler = get_scheduler(optimizer, cfg)
 
     # Set random seeds
@@ -77,6 +86,10 @@ def run_experiment(cfg: ExperimentConfig):
             optimizer.zero_grad()
             loss = model(samples)
             loss.backward()
+
+            if manifold_operator is not None:
+                torch.nn.utils.clip_grad_norm_(manifold_operator.parameters(), 1.0)
+
             optimizer.step()
             loss_ep.append(loss.item())
             model.step(ep / cfg.epoch)

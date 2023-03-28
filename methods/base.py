@@ -1,9 +1,12 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from config import ExperimentConfig
 from eval.get_data import get_data
 from eval.knn import eval_knn
 from eval.sgd import eval_sgd
+from manifold.transop import TransportOperator
 from model import get_head, get_model
 
 
@@ -21,8 +24,29 @@ class BaseMethod(nn.Module):
         self.num_pairs = cfg.data_cfg.num_samples * (cfg.data_cfg.num_samples - 1) // 2
         self.eval_head = cfg.eval_header
         self.emb_size = cfg.ssl_cfg.head_output_dim
+        self.cfg = cfg
 
-    def forward(self, samples):
+    def get_method_param_group(self):
+        raise NotImplementedError
+
+    def manifold_augmentation(self, z0, z1, manifold_operator):
+        z1_hat, z0_tilde, z1_tilde, kl_loss, params = manifold_operator(z0, z1)
+        transop_loss = F.mse_loss(z1_hat, z1)
+        manifold_loss = transop_loss + self.cfg.manifold_cfg.kl_loss_weight*kl_loss
+
+        if self.cfg.manifold_cfg.enable_shift_l2:
+            shift_l2 = (params[1]**2).sum(dim=-1).mean()
+            manifold_loss += self.cfg.manifold_cfg.shift_l2_weight * shift_l2
+        if self.cfg.manifold_cfg.enable_eigreg:
+            psi = manifold_operator.psi
+            psi = psi.reshape(-1, psi.shape[-1], psi.shape[-1])
+            psi_use = psi_use[torch.randperm(len(psi_use))[:10]]
+            eig_loss = (torch.real(torch.linalg.eigvals(psi_use)) ** 2).sum()
+            manifold_loss += self.cfg.manifold_cfg.eigreg_weight * eig_loss
+
+        return z0_tilde, z1_tilde, manifold_loss
+
+    def forward(self, samples, manifold_operator=None):
         raise NotImplementedError
 
     def get_acc(self, ds_clf, ds_test):

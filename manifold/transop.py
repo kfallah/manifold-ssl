@@ -34,6 +34,21 @@ class TransportOperator(nn.Module):
         self.op_dim = op_dim
         self.block_count = block_count
 
+    def get_param_groups(self):
+        return [
+            {
+                "params": self.psi,
+                "lr": self.cfg.lr,
+                "weight_decay": self.cfg.wd,
+            },
+            {
+                "params": self.coeff_enc.parameters(),
+                "lr": self.cfg.vi_lr,
+                "lr": self.cfg.vi_lr,
+                "weight_decay": self.cfg.vi_wd,
+            }
+        ]
+
     def forward(self, z0, z1):
         c_enc, c0_prior, c1_prior, kl_loss, params = self.coeff_enc(z0.detach(), z1.detach(), self.psi.detach())
 
